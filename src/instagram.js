@@ -1,6 +1,6 @@
 // Instagram API avec connexion Instagram (Business Login for Instagram).
 // Accès standard : suffisant pour des comptes que tu possèdes ou gères, ajoutés à l'app Meta.
-import { randomId, timingSafeEqual } from './util.js';
+import { randomId, timingSafeEqual, b64u, unb64u, enc, dec, hmac, json } from './util.js';
 import { sign } from './auth.js';
 import { ACCOUNTS } from '../public/accounts.js';
 
@@ -124,4 +124,29 @@ export async function igPublish(env, conn, container) {
     permalink = m.permalink || null;
   } catch {}
   return { id: r.id, permalink };
+}
+
+// Adresses appelées par Meta (sans connexion à Plateau) : retrait de l'app par un compte, et demande de suppression des données.
+async function readSignedRequest(env, req) {
+  const form = await req.formData().catch(() => null);
+  const sr = form && form.get('signed_request');
+  if (!sr || !env.IG_APP_SECRET) return null;
+  const [sig, payload] = String(sr).split('.');
+  if (!sig || !payload) return null;
+  const expected = b64u(await hmac(enc.encode(env.IG_APP_SECRET), enc.encode(payload)));
+  if (!timingSafeEqual(sig, expected)) return null;
+  try { return JSON.parse(dec.decode(unb64u(payload))); } catch { return null; }
+}
+
+export async function igDeauthorize(env, req) {
+  const data = await readSignedRequest(env, req);
+  if (data && data.user_id) await env.DB.prepare("DELETE FROM connections WHERE platform = 'ig' AND ext_id = ?").bind(String(data.user_id)).run();
+  return json({ ok: true });
+}
+
+export async function igDataDeletion(env, req, url) {
+  const data = await readSignedRequest(env, req);
+  if (data && data.user_id) await env.DB.prepare("DELETE FROM connections WHERE platform = 'ig' AND ext_id = ?").bind(String(data.user_id)).run();
+  const code = randomId(9);
+  return json({ url: new URL('/', url).toString(), confirmation_code: code });
 }

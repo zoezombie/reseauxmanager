@@ -3,7 +3,7 @@ import { isAuthed, login, logout, sameOrigin, rotateSessions } from './auth.js';
 import { totpConfig, newSecret, otpauthUri, verifyCode, checkAndConsume, clearTotp } from './totp.js';
 import { json, err } from './util.js';
 import { mediaStart, mediaPart, mediaComplete, mediaAbort, mediaServe, storageUsed, storageLimit } from './media.js';
-import { igStart, igCallback, igConfigured, igRedirect } from './instagram.js';
+import { igStart, igCallback, igConfigured, igRedirect, igDeauthorize, igDataDeletion } from './instagram.js';
 import { vapidPublicKey, notifyAll } from './push.js';
 import { adapt, aiEnabled } from './ai.js';
 import { tick } from './tick.js';
@@ -20,6 +20,8 @@ export default {
       if (path.startsWith('/m/')) return mediaServe(req, env, decodeURIComponent(path.slice(3)));
       if (!sameOrigin(req)) return err('Origine refusée.', 403);
       if (path === '/api/login' && req.method === 'POST') return login(req, env);
+      if (path === '/auth/instagram/deauthorize' && req.method === 'POST') return igDeauthorize(env, req);
+      if (path === '/auth/instagram/delete' && req.method === 'POST') return igDataDeletion(env, req, url);
       if (path === '/api/logout' && req.method === 'POST') return logout();
 
       const authed = await isAuthed(req, env);
