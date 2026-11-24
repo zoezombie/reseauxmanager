@@ -3,6 +3,8 @@
   "name": "reseauxmanager",
   "main": "src/worker.js",
   "compatibility_date": "2026-11-01",
+  // Adresse publique de l'app : https://reseauxmanager.<sous-domaine>.workers.dev
+  "workers_dev": true,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
