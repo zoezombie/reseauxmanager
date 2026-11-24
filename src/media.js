@@ -1,4 +1,11 @@
 import { json, err, randomId } from './util.js';
+import { kvGet, kvSet } from './db.js';
+
+// Plafond volontaire, sous les 10 Go gratuits de R2 : au-delà, l'app refuse les nouveaux envois.
+export const storageLimit = (env) => Number(env.MEDIA_LIMIT_GB || 9) * 1024 ** 3;
+export async function storageUsed(env) {
+  try { return JSON.parse((await kvGet(env, 'storage')) || '{}'); } catch { return {}; }
+}
 
 // Envoi en plusieurs morceaux : contourne la limite de 100 Mo par requête de Cloudflare.
 const EXT = { 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -7,6 +14,12 @@ export async function mediaStart(req, env) {
   const { name = '', type = '', size = 0 } = await req.json().catch(() => ({}));
   if (!/^(video|image)\//.test(type)) return err('Seules les vidéos et les images sont acceptées.');
   if (size > 4 * 1024 ** 3) return err('Fichier trop lourd (4 Go maximum).');
+  const used = (await storageUsed(env)).bytes || 0;
+  const limit = storageLimit(env);
+  if (used + size > limit) {
+    const go = (n) => (n / 1024 ** 3).toFixed(1).replace('.', ',');
+    return err(`Stockage presque plein (${go(used)} Go sur ${go(limit)} Go) : l’app bloque l’envoi pour rester dans la partie gratuite. Les médias publiés depuis plus de 30 jours sont supprimés automatiquement ; tu peux aussi supprimer d’anciens posts.`, 507);
+  }
   const ext = EXT[type] || (name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5);
   const key = randomId(24) + '.' + ext;
   const up = await env.MEDIA.createMultipartUpload(key, {
@@ -31,6 +44,8 @@ export async function mediaComplete(req, env) {
   if (!key || !uploadId || !Array.isArray(parts) || !parts.length) return err('Paramètres manquants.');
   const up = env.MEDIA.resumeMultipartUpload(key, uploadId);
   const obj = await up.complete(parts.map((p) => ({ partNumber: Number(p.partNumber), etag: String(p.etag) })));
+  const st = await storageUsed(env);
+  await kvSet(env, 'storage', JSON.stringify({ bytes: (st.bytes || 0) + obj.size, count: (st.count || 0) + 1, at: st.at || Date.now() }));
   return json({ key, size: obj.size });
 }
 

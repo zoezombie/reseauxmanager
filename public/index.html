@@ -332,7 +332,7 @@ const IC={
  'a-publier':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
  comptes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.8 2.7 2.6 3 5.2"/></svg>'};
 const VIEWS=[['calendrier','Calendrier'],['studio','Nouveau post'],['a-publier','À publier'],['comptes','Comptes']];
-function thumb(p){const u=mediaURL(p);if(!u)return'<div class="thumb">pas de média</div>';
+function thumb(p){const u=mediaURL(p);if(!u)return`<div class="thumb">${p.media&&p.media.purged?'média retiré après publication':'pas de média'}</div>`;
  return /^video/.test(p.media.type||'')?`<div class="thumb has"><video src="${esc(u)}#t=0.1" muted playsinline preload="metadata"></video></div>`:`<div class="thumb has"><img src="${esc(u)}" alt="" loading="lazy"></div>`}
 const chip=p=>{const s=stateOf(p),b=BR[brandsOf(p)[0]]||BRANDS[0];return`<button class="chip ${s}" data-open="${esc(p.id)}" title="${esc((p.title||'Sans titre')+' · '+STL[s])}">${badge(b)}${p.when?`<b>${fTime(new Date(p.when))}</b>`:''}<span>${esc(p.title||'Sans titre')}</span></button>`};
 function seg(p){const s=stateOf(p),d=p.when?new Date(p.when):null;
@@ -393,12 +393,16 @@ function accountsHTML(){
   return a.p==='tt'?'<span class="pill rap">Rappel iPhone</span>':'<span class="pill later">Rappel, puis auto</span>'};
  return`<div class="vhead"><div><h1>Comptes</h1><p>Instagram publie seul dès qu’un compte est connecté. Les autres réseaux passent par « À publier » et une notification à l’heure prévue.</p></div></div>${fl}
  <section class="box" id="pushbox"><h2>Notifications sur cet appareil</h2><p>Vérification…</p></section>
+ ${storageBox()}
  ${me.igConfigured?'':`<section class="box"><h2>Brancher Instagram</h2><p>Ajoute les secrets <b>IG_APP_ID</b> et <b>IG_APP_SECRET</b> de ton app Meta dans Cloudflare (étape 5 du guide). Déclare aussi cette adresse de retour dans l’app Meta :</p><code class="uri">${esc(me.igRedirect)}</code><div class="actions"><button class="btn small" data-copytext="${esc(me.igRedirect)}">Copier l’adresse</button></div></section>`}
  <div class="sum"><div><b>${nConn}/${ig.length}</b><span>comptes Instagram connectés</span></div><div><b>${L.filter(a=>a.p==='tt').length}</b><span>TikTok : rappel sur iPhone</span></div><div><b>${L.filter(a=>a.p==='yt'||a.p==='li').length}</b><span>YouTube et LinkedIn : rappel, puis auto après approbation</span></div></div>
  ${me.igConfigured&&nConn<ig.length?'<p class="note" style="margin:-12px 0 20px">Chaque bouton « Connecter » relie un compte précis : connecte-toi avec ce compte-là sur la page Instagram qui s’ouvre.</p>':''}
  ${BRANDS.map(b=>`<section class="brandsec"><h2>${badge(b)}${esc(b.n)}</h2><table class="acct"><thead><tr><th>Compte</th><th>Réseau</th><th>Publication</th><th>Action</th></tr></thead><tbody>${b.acc.map(a=>`<tr><td data-l="Compte"><b>${esc(a.n)}</b>${a.p==='li'?'<span class="sub">Page d’entreprise</span>':''}<span class="sub">${NEXT[a.p]}</span></td><td data-l="Réseau">${tag(a.p)}</td><td data-l="Publication">${status(a)}</td><td data-l="Action">${action(a)}</td></tr>`).join('')}</tbody></table></section>`).join('')}
  <div class="actions" style="margin-top:10px"><button class="btn" id="b-logout">Se déconnecter de Plateau</button></div>`;
 }
+
+function storageBox(){const s=me.storage||{bytes:0,limit:9*1024**3},go=n=>(n/1024**3).toFixed(1).replace('.',','),pct=Math.min(100,Math.round(s.bytes/s.limit*100));
+ return`<section class="box"><h2>Stockage des médias</h2><p>${go(s.bytes)} Go utilisés sur ${go(s.limit)} Go. Cloudflare offre 10 Go : l’app s’arrête avant pour rester gratuite, et supprime les vidéos 30 jours après leur publication.</p><span class="bar"><i style="width:${pct}%"></i></span></section>`}
 
 /* ---------- Notifications ---------- */
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);

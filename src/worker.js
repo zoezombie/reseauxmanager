@@ -1,7 +1,7 @@
 import { ensureSchema, kvGet, kvSet } from './db.js';
 import { isAuthed, login, logout, sameOrigin } from './auth.js';
 import { json, err } from './util.js';
-import { mediaStart, mediaPart, mediaComplete, mediaAbort, mediaServe } from './media.js';
+import { mediaStart, mediaPart, mediaComplete, mediaAbort, mediaServe, storageUsed, storageLimit } from './media.js';
 import { igStart, igCallback, igConfigured, igRedirect } from './instagram.js';
 import { vapidPublicKey, notifyAll } from './push.js';
 import { adapt, aiEnabled } from './ai.js';
@@ -88,6 +88,7 @@ async function me(env, url, authed) {
     aiEnabled: aiEnabled(env),
     vapidKey: await vapidPublicKey(env),
     pushDevices: subs ? subs.n : 0,
+    storage: { bytes: (await storageUsed(env)).bytes || 0, limit: storageLimit(env) },
     connections: Object.fromEntries(results.map((c) => [c.account, { platform: c.platform, username: c.username, expires: c.expires }])),
   });
 }

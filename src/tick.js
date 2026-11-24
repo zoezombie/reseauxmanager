@@ -127,7 +127,40 @@ export async function tick(env) {
     await kvSet(env, 'maintenance', String(now));
     await igRefreshTokens(env, 3);
     await cleanupMedia(env);
+    await purgeOldMedia(env);
+    await measureStorage(env);
   }
+}
+
+// Les vidéos ne servent qu'à publier : 30 jours après la date prévue, une fois tout publié
+// (ou 60 jours après dans tous les cas), le fichier est supprimé. Le post reste dans l'historique.
+async function purgeOldMedia(env, days = 30) {
+  const now = Date.now();
+  const { results } = await env.DB.prepare(
+    "SELECT id, data FROM posts WHERE status = 'sched' AND at IS NOT NULL AND at < ? AND instr(data, '\"key\"') > 0 LIMIT 40"
+  ).bind(now - days * 864e5).all();
+  for (const r of results) {
+    const p = JSON.parse(r.data);
+    if (!p.media || !p.media.key) continue;
+    const { results: ts } = await env.DB.prepare('SELECT state FROM targets WHERE post_id = ?').bind(r.id).all();
+    const allDone = ts.length > 0 && ts.every((t) => t.state === 'done' || t.state === 'published');
+    if (!allDone && p.at > now - 2 * days * 864e5) continue;
+    await env.MEDIA.delete(p.media.key);
+    p.media = { purged: true, name: p.media.name, type: p.media.type, size: p.media.size };
+    await env.DB.prepare('UPDATE posts SET data = ? WHERE id = ?').bind(JSON.stringify(p), r.id).run();
+  }
+}
+
+// Mesure exacte de l'espace occupé (sert au plafond et à l'affichage dans « Comptes »).
+export async function measureStorage(env) {
+  let bytes = 0, count = 0, cursor;
+  for (let i = 0; i < 10; i++) {
+    const l = await env.MEDIA.list({ limit: 1000, cursor });
+    for (const o of l.objects) { bytes += o.size; count++; }
+    if (!l.truncated) break;
+    cursor = l.cursor;
+  }
+  await kvSet(env, 'storage', JSON.stringify({ bytes, count, at: Date.now() }));
 }
 
 // Supprime les fichiers qui ne servent plus à aucun post (après 2 jours, pour laisser le temps d'annuler).

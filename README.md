@@ -80,6 +80,17 @@ Bon à savoir :
 - Instagram n'accepte les images qu'entre 4:5 (portrait) et 1,91:1 (paysage). Pour un format 9:16, publie une vidéo : elle part en reel. Plateau convertit tout seul les images en JPEG.
 - Instagram limite chaque compte à 100 publications automatiques par 24 heures.
 
+## Coûts : rester dans la gratuité
+Seul le stockage des médias (R2) peut être facturé, et l'app est réglée pour rester dans la partie gratuite.
+
+- **Le serveur (Workers) et la base (D1) ne facturent jamais sur l'offre gratuite.** S'ils dépassent leurs quotas du jour, ils refusent les requêtes jusqu'à minuit UTC, sans rien prélever.
+- **R2 offre chaque mois 10 Go de stockage, 1 million d'écritures et 10 millions de lectures.** Le téléchargement des fichiers est gratuit. L'app reste en dessous :
+  - elle refuse les nouveaux envois au-delà de **9 Go** stockés ;
+  - elle supprime toute seule chaque vidéo **30 jours après sa publication**, ou 60 jours après sa date prévue dans tous les cas. Le post reste dans l'historique.
+  - L'espace utilisé est affiché dans **Comptes → Stockage des médias**.
+- **Alerte de dépense** : dans Cloudflare, *Manage Account → Billing → Billable Usage → Create budget alert*, mets un seuil de **1 $**. Cloudflare t'écrira par courriel dès que la moindre dépense se profile. C'est une alerte, pas un blocage.
+- **N'active jamais l'offre payante Workers (5 $ US/mois)** sauf si tu le décides. Rien ne s'active tout seul.
+
 ## Ajouter ou retirer un compte
 Tout est dans `public/accounts.js`. Modifie la liste directement sur GitHub (icône crayon), puis enregistre. L'app se met à jour en une minute.
 
@@ -93,7 +104,7 @@ Les deux demandes exigent de montrer l'app en fonctionnement. Quand tu seras pr�
 
 ## Dépannage
 - **Journal des erreurs** : dans Cloudflare, Worker `reseauxmanager` → **Observability** ou **Logs**.
-- **« Worker exceeded CPU time limit »** dans le journal : l'offre gratuite donne 10 ms de calcul par requête. Si ce message revient souvent, passe à l'offre payante Workers.
+- **« Worker exceeded CPU time limit »** dans le journal : l'offre gratuite donne 10 ms de calcul par requête. Si ce message revient souvent, signale-le avant de passer à l'offre payante : on peut souvent alléger le code.
 - **Pas de notification sur iPhone** : vérifie que Plateau est ouvert depuis l'icône de l'écran d'accueil et que les notifications sont activées dans **Comptes**. Le bouton « Envoyer une notification test » sert à vérifier.
 
 ## Pour les développeurs
