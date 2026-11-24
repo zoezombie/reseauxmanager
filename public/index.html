@@ -242,6 +242,7 @@ code.uri{display:block;padding:10px 12px;border-radius:10px;background:var(--pan
   <div class="logo"><i></i>Plateau</div>
   <p id="login-msg">Entre ton mot de passe pour accéder à tes publications.</p>
   <input type="password" id="pw" autocomplete="current-password" placeholder="Mot de passe" aria-label="Mot de passe" required>
+  <input id="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Code à 6 chiffres" aria-label="Code de validation" hidden>
   <p class="err" id="login-err" hidden></p>
   <button class="btn primary" type="submit">Entrer</button>
  </form>
@@ -394,6 +395,7 @@ function accountsHTML(){
  return`<div class="vhead"><div><h1>Comptes</h1><p>Instagram publie seul dès qu’un compte est connecté. Les autres réseaux passent par « À publier » et une notification à l’heure prévue.</p></div></div>${fl}
  <section class="box" id="pushbox"><h2>Notifications sur cet appareil</h2><p>Vérification…</p></section>
  ${storageBox()}
+ <section class="box" id="tfbox"></section>
  ${me.igConfigured?'':`<section class="box"><h2>Brancher Instagram</h2><p>Ajoute les secrets <b>IG_APP_ID</b> et <b>IG_APP_SECRET</b> de ton app Meta dans Cloudflare (étape 5 du guide). Déclare aussi cette adresse de retour dans l’app Meta :</p><code class="uri">${esc(me.igRedirect)}</code><div class="actions"><button class="btn small" data-copytext="${esc(me.igRedirect)}">Copier l’adresse</button></div></section>`}
  <div class="sum"><div><b>${nConn}/${ig.length}</b><span>comptes Instagram connectés</span></div><div><b>${L.filter(a=>a.p==='tt').length}</b><span>TikTok : rappel sur iPhone</span></div><div><b>${L.filter(a=>a.p==='yt'||a.p==='li').length}</b><span>YouTube et LinkedIn : rappel, puis auto après approbation</span></div></div>
  ${me.igConfigured&&nConn<ig.length?'<p class="note" style="margin:-12px 0 20px">Chaque bouton « Connecter » relie un compte précis : connecte-toi avec ce compte-là sur la page Instagram qui s’ouvre.</p>':''}
@@ -403,6 +405,31 @@ function accountsHTML(){
 
 function storageBox(){const s=me.storage||{bytes:0,limit:9*1024**3},go=n=>(n/1024**3).toFixed(1).replace('.',','),pct=Math.min(100,Math.round(s.bytes/s.limit*100));
  return`<section class="box"><h2>Stockage des médias</h2><p>${go(s.bytes)} Go utilisés sur ${go(s.limit)} Go. Cloudflare offre 10 Go : l’app s’arrête avant pour rester gratuite, et supprime les vidéos 30 jours après leur publication.</p><span class="bar"><i style="width:${pct}%"></i></span></section>`}
+
+/* ---------- Double authentification ---------- */
+let tfSetup=null;
+function loadQr(){return window.qrcode?Promise.resolve():new Promise((ok,ko)=>{const sc=document.createElement('script');sc.src='/vendor/qrcode.js';sc.onload=ok;sc.onerror=ko;document.head.appendChild(sc)})}
+function renderTf(){const el=$('#tfbox');if(!el)return;let h='<h2>Double authentification</h2>';
+ if(me.twoFactorSuspended)h+='<p class="err" style="margin:0">Suspendue par le secret de secours DISABLE_2FA dans Cloudflare : seul le mot de passe est demandé. Réactive-la ci-dessous, puis supprime ce secret.</p>';
+ if(me.twoFactor){
+  h+=`<p>Activée. À chaque nouvelle connexion, Plateau demande le mot de passe puis un code à 6 chiffres de ton app d’authentification. Les appareils déjà connectés le restent.</p>
+  <div class="actions">${me.twoFactorSuspended?'<button class="btn small" id="tf-reset">Réinitialiser (téléphone perdu)</button>':'<input id="tf-off-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Code actuel" style="max-width:150px;min-height:36px"><button class="btn small" id="tf-off">Désactiver</button>'}</div>`;
+ }else if(tfSetup){
+  h+=`<p>1. Scanne ce QR code avec l’appareil photo de ton iPhone : il propose de l’ajouter à l’app <b>Mots de passe</b>. Google Authenticator ou une autre app d’authentification fonctionne aussi.</p>
+  <div id="tf-qr" style="width:200px;background:#fff;padding:8px;border-radius:12px;line-height:0"></div>
+  <p>Sur ton iPhone directement : <a href="${esc(tfSetup.uri)}">ajouter à l’app Mots de passe</a>. Sinon, la clé à saisir à la main : <code class="uri" style="display:inline-block">${esc(tfSetup.secret.replace(/(.{4})/g,'$1 ').trim())}</code></p>
+  <p>2. Entre le code à 6 chiffres que l’app affiche :</p>
+  <div class="actions"><input id="tf-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" style="max-width:150px;min-height:36px"><button class="btn small dark" id="tf-on">Confirmer et activer</button><button class="btn small" id="tf-cancel">Annuler</button></div>
+  <p class="note">À l’activation, tes autres appareils sont déconnectés : reconnecte-les avec le mot de passe et un code.</p>`;
+ }else{
+  h+='<p>Ajoute un code à 6 chiffres, renouvelé toutes les 30 secondes, en plus du mot de passe. Même si quelqu’un découvre ton mot de passe, il ne pourra pas entrer sans ton téléphone.</p><div class="actions"><button class="btn small dark" id="tf-start">Activer la double authentification</button></div>';
+ }
+ el.innerHTML=h;
+ if(tfSetup&&!me.twoFactor)loadQr().then(()=>{const q=window.qrcode(0,'M');q.addData(tfSetup.uri);q.make();const box=$('#tf-qr');if(box)box.innerHTML=q.createSvgTag({cellSize:4,margin:2,scalable:true})}).catch(()=>{const box=$('#tf-qr');if(box)box.textContent='QR code indisponible : utilise la clé ci-dessous.'});
+}
+async function tfStart(){try{tfSetup=await api('/api/2fa/setup',{method:'POST'});renderTf()}catch(e){if(!(e instanceof AuthError))toast(e.message)}}
+async function tfEnable(){const c=($('#tf-code').value||'').trim();try{await api('/api/2fa/enable',{method:'POST',body:JSON.stringify({code:c})});tfSetup=null;me.twoFactor=true;renderTf();toast('Double authentification activée')}catch(e){if(!(e instanceof AuthError))toast(e.message)}}
+async function tfDisable(reset){const c=reset?'':($('#tf-off-code').value||'').trim();try{await api('/api/2fa/disable',{method:'POST',body:JSON.stringify({code:c})});me.twoFactor=false;renderTf();toast('Double authentification désactivée')}catch(e){if(!(e instanceof AuthError))toast(e.message)}}
 
 /* ---------- Notifications ---------- */
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -588,7 +615,7 @@ let tmr;function toast(msg,act){const t=$('#toast'),b=t.querySelector('button');
 /* ---------- Routage ---------- */
 function renderMain(force){if(view==='studio'){if(force||!$('#f-title'))renderStudio();return}
  $('#main').innerHTML=view==='a-publier'?queueHTML():view==='comptes'?accountsHTML():calHTML();
- if(view==='comptes')renderPushBox()}
+ if(view==='comptes'){renderPushBox();renderTf()}}
 function render(){if(!me||!me.authed)return;renderNav();renderMain(false)}
 function show(){const h=location.hash.slice(1);view=VIEWS.some(v=>v[0]===h)?h:'calendrier';
  if(view==='studio'&&!editing){editing=newPost();adaptTab=prevTab=null;errMsg='';mediaNote=''}
@@ -608,6 +635,11 @@ document.addEventListener('click',ev=>{const t=ev.target;let el;
  if((el=t.closest('[data-share]'))){shareVideo(el,el.dataset.share);return}
  if((el=t.closest('[data-act]'))){const[pid,acc,a]=el.dataset.act.split('|');targetAct(pid,acc,a);return}
  if((el=t.closest('[data-disconnect]'))){const id=el.dataset.disconnect;api('/api/connections/'+encodeURIComponent(id),{method:'DELETE'}).then(()=>{delete me.connections[id];render();toast('Compte déconnecté')}).catch(()=>{});return}
+ if(t.closest('#tf-start')){tfStart();return}
+ if(t.closest('#tf-on')){tfEnable();return}
+ if(t.closest('#tf-cancel')){tfSetup=null;renderTf();return}
+ if(t.closest('#tf-off')){tfDisable(false);return}
+ if(t.closest('#tf-reset')){tfDisable(true);return}
  if(t.closest('#b-pon')){pushOn();return}
  if(t.closest('#b-poff')){pushOff();return}
  if(t.closest('#b-ptest')){api('/api/push/test',{method:'POST'}).then(r=>toast(r.sent?'Notification envoyée':'Aucun appareil n’a reçu la notification')).catch(e=>toast(e.message));return}
@@ -649,9 +681,10 @@ addEventListener('hashchange',()=>{if(me&&me.authed)show()});
 function showLogin(){me=Object.assign(me||{},{authed:false});$('#app').hidden=true;$('#tabs').hidden=true;$('#login').hidden=false;
  if(me&&me.passwordSet===false){$('#login-msg').textContent='Le mot de passe n’est pas encore configuré : ajoute le secret APP_PASSWORD dans Cloudflare (étape 4 du guide).'}
  setTimeout(()=>{const pw=$('#pw');if(pw)pw.focus()},50)}
-$('#login-form').addEventListener('submit',async ev=>{ev.preventDefault();const er=$('#login-err');er.hidden=true;
- try{const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('#pw').value})});const d=await r.json().catch(()=>({}));
-  if(!r.ok){er.textContent=d.error||'Connexion impossible.';er.hidden=false;return}boot()}
+$('#login-form').addEventListener('submit',async ev=>{ev.preventDefault();const er=$('#login-err'),cf=$('#code');er.hidden=true;
+ try{const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('#pw').value,code:cf.value})});const d=await r.json().catch(()=>({}));
+  if(d.need2fa){const first=cf.hidden;cf.hidden=false;cf.required=true;$('#login-msg').textContent='Entre le code à 6 chiffres affiché par ton app d’authentification.';if(!first){er.textContent=d.error;er.hidden=false}cf.value='';cf.focus();return}
+  if(!r.ok){er.textContent=d.error||'Connexion impossible.';er.hidden=false;return}cf.value='';boot()}
  catch(e){er.textContent='Serveur injoignable.';er.hidden=false}});
 async function boot(){
  try{me=await (await fetch('/api/me',{credentials:'same-origin'})).json()}catch(e){$('#login').hidden=true;document.body.insertAdjacentHTML('beforeend','<p class="offline">Plateau est injoignable. Vérifie ta connexion puis recharge la page.</p>');return}

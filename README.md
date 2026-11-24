@@ -44,6 +44,15 @@ Ensuite, chaque modification envoyée sur GitHub remet l'app en ligne automatiqu
 
 iOS n'autorise les notifications que depuis l'icône de l'écran d'accueil.
 
+### 4 bis. Activer la double authentification (recommandé)
+Dans Plateau, va dans **Comptes → Double authentification → Activer**.
+1. Scanne le QR code avec l'appareil photo de ton iPhone : il propose de l'ajouter à l'app **Mots de passe**. Google Authenticator ou une autre app d'authentification marche aussi.
+2. Entre le code à 6 chiffres affiché pour confirmer.
+
+Ensuite, chaque nouvelle connexion demande le mot de passe **et** le code. Sur iPhone, l'app Mots de passe propose le code toute seule au moment de se connecter. Tes autres appareils sont déconnectés à l'activation : reconnecte-les une fois avec le mot de passe et un code.
+
+**Téléphone perdu ?** Dans Cloudflare, ajoute le secret `DISABLE_2FA` avec la valeur `1` (**Settings → Variables and Secrets**). Plateau ne demande alors plus que le mot de passe. Dans **Comptes**, touche **Réinitialiser**, réactive la double authentification avec ton nouveau téléphone, puis supprime le secret `DISABLE_2FA`.
+
 ### 5. Brancher Instagram (publication automatique)
 Instagram exige une petite « app » côté Meta. Elle ne sert que tes comptes, donc aucune validation de Meta n'est nécessaire (accès « Standard »). Les libellés exacts de Meta peuvent varier un peu.
 

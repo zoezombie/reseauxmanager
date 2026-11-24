@@ -37,3 +37,7 @@ export async function kvOnce(env, k, make) {
   await env.DB.prepare('INSERT INTO kv (k, v) VALUES (?, ?) ON CONFLICT(k) DO NOTHING').bind(k, v).run();
   return (await kvGet(env, k)) || v;
 }
+
+export async function kvDel(env, k) {
+  await env.DB.prepare('DELETE FROM kv WHERE k = ?').bind(k).run();
+}

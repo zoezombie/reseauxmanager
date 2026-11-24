@@ -1,5 +1,6 @@
 import { ensureSchema, kvGet, kvSet } from './db.js';
-import { isAuthed, login, logout, sameOrigin } from './auth.js';
+import { isAuthed, login, logout, sameOrigin, rotateSessions } from './auth.js';
+import { totpConfig, newSecret, otpauthUri, verifyCode, checkAndConsume, clearTotp } from './totp.js';
 import { json, err } from './util.js';
 import { mediaStart, mediaPart, mediaComplete, mediaAbort, mediaServe, storageUsed, storageLimit } from './media.js';
 import { igStart, igCallback, igConfigured, igRedirect } from './instagram.js';
@@ -58,6 +59,11 @@ export default {
         return json({ ok: true });
       }
 
+      // Double authentification
+      if (path === '/api/2fa/setup' && req.method === 'POST') return twoFactorSetup(env);
+      if (path === '/api/2fa/enable' && req.method === 'POST') return twoFactorEnable(req, env);
+      if (path === '/api/2fa/disable' && req.method === 'POST') return twoFactorDisable(req, env);
+
       if (path === '/api/adapt' && req.method === 'POST') return adapt(req, env);
       if (path === '/api/run' && req.method === 'POST') {
         await tick(env);
@@ -89,6 +95,8 @@ async function me(env, url, authed) {
     vapidKey: await vapidPublicKey(env),
     pushDevices: subs ? subs.n : 0,
     storage: { bytes: (await storageUsed(env)).bytes || 0, limit: storageLimit(env) },
+    twoFactor: !!(await totpConfig(env)),
+    twoFactorSuspended: !!env.DISABLE_2FA,
     connections: Object.fromEntries(results.map((c) => [c.account, { platform: c.platform, username: c.username, expires: c.expires }])),
   });
 }
@@ -183,4 +191,34 @@ async function unsubscribe(req, env) {
   const { endpoint } = await req.json().catch(() => ({}));
   if (endpoint) await env.DB.prepare('DELETE FROM push_subs WHERE endpoint = ?').bind(endpoint).run();
   return json({ ok: true });
+}
+
+async function twoFactorSetup(env) {
+  if (await totpConfig(env)) return err('La double authentification est déjà active.');
+  const secret = newSecret();
+  await kvSet(env, 'totp_pending', JSON.stringify({ secret, at: Date.now() }));
+  return json({ secret, uri: otpauthUri(secret) });
+}
+
+async function twoFactorEnable(req, env) {
+  const { code } = await req.json().catch(() => ({}));
+  let pending = null;
+  try { pending = JSON.parse((await kvGet(env, 'totp_pending')) || 'null'); } catch {}
+  if (!pending || Date.now() - pending.at > 20 * 60e3) return err('Configuration expirée : recommence l’activation.');
+  const step = await verifyCode(pending.secret, code);
+  if (step === null) return err('Code incorrect. Vérifie l’heure de ton téléphone et réessaie avec le code affiché.');
+  await kvSet(env, 'totp', JSON.stringify({ secret: pending.secret, at: Date.now() }));
+  await kvSet(env, 'totp_last', String(step));
+  await env.DB.prepare("DELETE FROM kv WHERE k = 'totp_pending'").run();
+  return json({ ok: true }, 200, { 'set-cookie': await rotateSessions(env) });
+}
+
+async function twoFactorDisable(req, env) {
+  const cfg = await totpConfig(env);
+  if (!cfg) return json({ ok: true });
+  const { code } = await req.json().catch(() => ({}));
+  // Avec le secret de secours DISABLE_2FA, on peut réinitialiser sans code (téléphone perdu).
+  if (!env.DISABLE_2FA && !(await checkAndConsume(env, cfg.secret, code))) return err('Code incorrect ou déjà utilisé.');
+  await clearTotp(env);
+  return json({ ok: true }, 200, { 'set-cookie': await rotateSessions(env) });
 }
