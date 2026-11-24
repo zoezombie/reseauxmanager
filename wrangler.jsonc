@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "plateau",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/auth/*", "/m/*"]
+  },
+  // Base de données et stockage des médias : créés automatiquement au premier déploiement.
+  "d1_databases": [{ "binding": "DB", "database_name": "plateau-db" }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "plateau-media" }],
+  // Vérifie chaque minute les posts arrivés à l'heure.
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": {
+    "IG_API_VERSION": "v24.0",
+    "AI_MODEL": "claude-haiku-5-5"
+  },
+  "observability": { "enabled": true }
+}

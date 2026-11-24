@@ -1,0 +1,15 @@
+{
+  "name": "plateau",
+  "version": "1.0.0",
+  "description": "Plateau : préparer et programmer ses publications sur plusieurs réseaux",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "wrangler": "^4.168.0"
+  },
+  "private": true,
+  "type": "module"
+}
