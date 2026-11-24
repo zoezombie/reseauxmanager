@@ -14,7 +14,7 @@ L'app tourne sur Cloudflare (offre gratuite) et s'utilise sur Mac comme sur iPho
 Compte environ 30 minutes. Tout se fait dans le navigateur, sans ligne de commande.
 
 ### 1. Le code sur GitHub
-Le code doit être dans un dépôt **privé** de ton compte GitHub, nommé `plateau`.
+Le code est dans le dépôt `zoezombie/reseauxmanager`. Rien à faire : c'est déjà en place.
 
 ### 2. Activer le stockage des médias (R2) dans Cloudflare
 1. Connecte-toi sur [dash.cloudflare.com](https://dash.cloudflare.com).
@@ -24,16 +24,16 @@ Le code doit être dans un dépôt **privé** de ton compte GitHub, nommé `plat
 ### 3. Mettre l'app en ligne
 1. Toujours dans Cloudflare, ouvre **Workers & Pages → Create application**.
 2. Choisis **Import a repository** et connecte ton compte GitHub si on te le demande.
-3. Sélectionne le dépôt `plateau`.
-4. Laisse les réglages proposés, avec la commande de déploiement `npx wrangler deploy`. Clique **Save and Deploy**.
-5. Au premier déploiement, Cloudflare crée tout seul la base de données (`plateau-db`) et l'espace de stockage (`plateau-media`).
+3. Sélectionne le dépôt `reseauxmanager`.
+4. Garde le nom proposé, `reseauxmanager`, et la commande de déploiement `npx wrangler deploy`. Clique **Save and Deploy**.
+5. La base de données (`plateau-db`) existe déjà. L'espace de stockage des médias (`plateau-media`) est créé tout seul au premier déploiement.
 
-À la fin, Cloudflare affiche l'adresse de l'app, du genre `https://plateau.<ton-sous-domaine>.workers.dev`. Garde-la.
+À la fin, Cloudflare affiche l'adresse de l'app, du genre `https://reseauxmanager.<ton-sous-domaine>.workers.dev`. Garde-la.
 
 Ensuite, chaque modification envoyée sur GitHub remet l'app en ligne automatiquement.
 
 ### 4. Choisir ton mot de passe
-1. Dans le Worker `plateau` : **Settings → Variables and Secrets → Add**.
+1. Dans le Worker `reseauxmanager` : **Settings → Variables and Secrets → Add**.
 2. Type **Secret**, nom `APP_PASSWORD`, valeur : le mot de passe de ton choix. Enregistre.
 3. Ouvre l'adresse de l'app et connecte-toi. Tu restes connectée un an sur chaque appareil.
 
@@ -52,7 +52,7 @@ Instagram exige une petite « app » côté Meta. Elle ne sert que tes comptes, 
 3. **Create App**. Choisis le cas d'usage qui gère le contenu Instagram, puis le produit **Instagram → API setup with Instagram login**.
 4. Dans cette page de configuration :
    - Copie l'**Instagram app ID** et l'**Instagram app secret**.
-   - Dans la partie **Business login settings**, ajoute l'adresse de retour (*OAuth redirect URI*). Plateau te l'affiche dans **Comptes**, avec un bouton pour la copier. Elle ressemble à `https://plateau.<ton-sous-domaine>.workers.dev/auth/instagram/callback`.
+   - Dans la partie **Business login settings**, ajoute l'adresse de retour (*OAuth redirect URI*). Plateau te l'affiche dans **Comptes**, avec un bouton pour la copier. Elle ressemble à `https://reseauxmanager.<ton-sous-domaine>.workers.dev/auth/instagram/callback`.
    - Ajoute chacun de tes comptes Instagram à l'app, avec le rôle *Instagram Tester* ou le bouton *Add account* selon l'écran. Accepte l'invitation depuis chaque compte si Instagram en envoie une.
 5. Dans Cloudflare (**Settings → Variables and Secrets**), ajoute deux secrets :
    - `IG_APP_ID` : l'Instagram app ID
@@ -92,7 +92,7 @@ Les deux demandes exigent de montrer l'app en fonctionnement. Quand tu seras pr�
 ---
 
 ## Dépannage
-- **Journal des erreurs** : dans Cloudflare, Worker `plateau` → **Observability** ou **Logs**.
+- **Journal des erreurs** : dans Cloudflare, Worker `reseauxmanager` → **Observability** ou **Logs**.
 - **« Worker exceeded CPU time limit »** dans le journal : l'offre gratuite donne 10 ms de calcul par requête. Si ce message revient souvent, passe à l'offre payante Workers.
 - **Pas de notification sur iPhone** : vérifie que Plateau est ouvert depuis l'icône de l'écran d'accueil et que les notifications sont activées dans **Comptes**. Le bouton « Envoyer une notification test » sert à vérifier.
 

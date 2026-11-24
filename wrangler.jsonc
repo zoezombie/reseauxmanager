@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "plateau",
+  "name": "reseauxmanager",
   "main": "src/worker.js",
   "compatibility_date": "2026-11-01",
   "assets": {
@@ -8,8 +8,8 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*", "/auth/*", "/m/*"]
   },
-  // Base de données et stockage des médias : créés automatiquement au premier déploiement.
-  "d1_databases": [{ "binding": "DB", "database_name": "plateau-db" }],
+  // Base de données (déjà créée) et stockage des médias (créé au premier déploiement).
+  "d1_databases": [{ "binding": "DB", "database_name": "plateau-db", "database_id": "eb159db2-b2a1-4af7-a0db-3286f721d7bd" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "plateau-media" }],
   // Vérifie chaque minute les posts arrivés à l'heure.
   "triggers": { "crons": ["* * * * *"] },
