@@ -5,6 +5,8 @@
   "compatibility_date": "2026-11-01",
   // Adresse publique de l'app : https://reseauxmanager.<sous-domaine>.workers.dev
   "workers_dev": true,
+  // Garde les variables ajoutées dans le tableau de bord Cloudflare lors des mises à jour.
+  "keep_vars": true,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
