@@ -233,6 +233,7 @@ code.uri{display:block;padding:10px 12px;border-radius:10px;background:var(--pan
 .chip.err{border-color:var(--rec);border-style:dotted}
 .conn{font-size:13px;color:var(--mute);display:block}
 .offline{padding:40px 20px;text-align:center;color:var(--mute)}
+select.pickig{min-height:36px;max-width:220px;padding:0 10px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg);font:inherit;font-size:14px;color:inherit}
 .acct .sub{display:block!important;margin:2px 0 0!important}
 </style>
 </head>
@@ -271,7 +272,7 @@ const len=s=>[...String(s||'')].length;
 const BR={};
 BRANDS.forEach(b=>{const h=b.c.slice(1),L=(.2126*parseInt(h.slice(0,2),16)+.7152*parseInt(h.slice(2,4),16)+.0722*parseInt(h.slice(4,6),16))/255;b.tx=L>.55?'#16141a':'#fff';BR[b.id]=b});
 const NEXT={
- ig:'Passer le compte en mode Créateur ou Entreprise, l’ajouter à l’app Meta, puis le connecter ici.',
+ ig:'Compte en mode Créateur ou Entreprise, partagé avec Plateau lors de la connexion Meta, puis choisi dans la liste.',
  tt:'Rien à faire : TikTok n’ouvre pas son API aux outils perso, le rappel reste la voie.',
  yt:'Demander l’audit de l’API YouTube à Google. En attendant : rappel.',
  li:'Demander l’accès « Community Management » à LinkedIn. En attendant : rappel.'};
@@ -387,18 +388,21 @@ function queueHTML(){
 function accountsHTML(){
  const L=Object.values(ACC),ig=L.filter(a=>a.p==='ig'),nConn=ig.filter(a=>connected(a.id)).length;
  const fl=flash?`<div class="flash ${flash.ok?'ok':'bad'}">${esc(flash.text)}</div>`:'';
+ const assets=me.igAssets||[];
  const action=a=>{if(a.p!=='ig')return a.p==='tt'?'—':'<span class="muted">Après approbation</span>';
-  if(connected(a.id))return`<button class="btn small" data-disconnect="${a.id}">Déconnecter</button>`;
-  return me.igConfigured?`<a class="btn small dark" href="/auth/instagram/start?account=${encodeURIComponent(a.id)}">Connecter</a>`:'<span class="muted">App Meta à configurer</span>'};
- const status=a=>{if(a.p==='ig'){const c=me.connections[a.id];return c?`<span class="pill auto">Automatique</span><span class="conn">@${esc(c.username||'compte')}</span>`:'<span class="pill rap">Rappel (pas connecté)</span>'}
+  if(!assets.length)return'<span class="muted">Connecte d’abord tes comptes Instagram ci-dessus</span>';
+  const cur=(me.connections[a.id]||{});const sel=assets.find(x=>x.id===cur.ext_id);
+  return`<select class="pickig" data-assign="${a.id}" aria-label="Compte Instagram relié à ${esc(a.n)}"><option value="">— pas relié —</option>${assets.map(x=>`<option value="${esc(x.id)}"${sel&&sel.id===x.id?' selected':''}>@${esc(x.username||x.name||x.id)}</option>`).join('')}</select>`};
+ const status=a=>{if(a.p==='ig'){const c=me.connections[a.id];return c?`<span class="pill auto">Automatique</span><span class="conn">@${esc(c.username||'compte')}</span>`:'<span class="pill rap">Rappel (pas relié)</span>'}
   return a.p==='tt'?'<span class="pill rap">Rappel iPhone</span>':'<span class="pill later">Rappel, puis auto</span>'};
  return`<div class="vhead"><div><h1>Comptes</h1><p>Instagram publie seul dès qu’un compte est connecté. Les autres réseaux passent par « À publier » et une notification à l’heure prévue.</p></div></div>${fl}
  <section class="box" id="pushbox"><h2>Notifications sur cet appareil</h2><p>Vérification…</p></section>
  ${storageBox()}
  <section class="box" id="tfbox"></section>
- ${me.igConfigured?'':`<section class="box"><h2>Brancher Instagram</h2><p>Ajoute les secrets <b>IG_APP_ID</b> et <b>IG_APP_SECRET</b> de ton app Meta dans Cloudflare (étape 5 du guide). Déclare aussi cette adresse de retour dans l’app Meta :</p><code class="uri">${esc(me.igRedirect)}</code><div class="actions"><button class="btn small" data-copytext="${esc(me.igRedirect)}">Copier l’adresse</button></div></section>`}
- <div class="sum"><div><b>${nConn}/${ig.length}</b><span>comptes Instagram connectés</span></div><div><b>${L.filter(a=>a.p==='tt').length}</b><span>TikTok : rappel sur iPhone</span></div><div><b>${L.filter(a=>a.p==='yt'||a.p==='li').length}</b><span>YouTube et LinkedIn : rappel, puis auto après approbation</span></div></div>
- ${me.igConfigured&&nConn<ig.length?'<p class="note" style="margin:-12px 0 20px">Chaque bouton « Connecter » relie un compte précis : connecte-toi avec ce compte-là sur la page Instagram qui s’ouvre.</p>':''}
+ ${me.igConfigured?`<section class="box"><h2>Instagram</h2><p>${assets.length?`Meta a partagé ${assets.length} compte${assets.length>1?'s':''} Instagram avec Plateau. Choisis ci-dessous quel compte correspond à chaque marque. Pour en ajouter, reconnecte-toi en cochant tous tes comptes.`:'Une seule connexion suffit pour tous tes comptes : dans la fenêtre de Meta, choisis ton portefeuille business et coche tous tes comptes Instagram.'}</p><div class="actions"><a class="btn small dark" href="/auth/instagram/start">${assets.length?'Mettre à jour mes comptes Instagram':'Connecter mes comptes Instagram'}</a></div></section>`
+ :`<section class="box"><h2>Brancher Instagram</h2><p>Ajoute dans Cloudflare les secrets <b>META_APP_ID</b>, <b>META_APP_SECRET</b> et <b>META_CONFIG_ID</b> de ton app Meta (voir le guide). Déclare aussi cette adresse de retour dans l’app Meta :</p><code class="uri">${esc(me.igRedirect)}</code><div class="actions"><button class="btn small" data-copytext="${esc(me.igRedirect)}">Copier l’adresse</button></div></section>`}
+ <div class="sum"><div><b>${nConn}/${ig.length}</b><span>comptes Instagram reliés</span></div><div><b>${L.filter(a=>a.p==='tt').length}</b><span>TikTok : rappel sur iPhone</span></div><div><b>${L.filter(a=>a.p==='yt'||a.p==='li').length}</b><span>YouTube et LinkedIn : rappel, puis auto après approbation</span></div></div>
+ 
  ${BRANDS.map(b=>`<section class="brandsec"><h2>${badge(b)}${esc(b.n)}</h2><table class="acct"><thead><tr><th>Compte</th><th>Réseau</th><th>Publication</th><th>Action</th></tr></thead><tbody>${b.acc.map(a=>`<tr><td data-l="Compte"><b>${esc(a.n)}</b>${a.p==='li'?'<span class="sub">Page d’entreprise</span>':''}<span class="sub">${NEXT[a.p]}</span></td><td data-l="Réseau">${tag(a.p)}</td><td data-l="Publication">${status(a)}</td><td data-l="Action">${action(a)}</td></tr>`).join('')}</tbody></table></section>`).join('')}
  <div class="actions" style="margin-top:10px"><button class="btn" id="b-logout">Se déconnecter de Plateau</button></div>`;
 }
@@ -669,6 +673,8 @@ document.addEventListener('input',ev=>{const t=ev.target,e=editing;if(!e)return;
 document.addEventListener('change',ev=>{const t=ev.target;
  if(t.id==='f-file'){onFile(t.files&&t.files[0]);t.value='';return}
  if(t.id==='f-date'||t.id==='f-time'){const d=$('#f-date').value,h=$('#f-time').value||'12:00';editing.when=d?d+'T'+h:'';return}
+ if(t.dataset&&t.dataset.assign){const acc=t.dataset.assign,v=t.value;
+  api('/api/connections/'+encodeURIComponent(acc),{method:'POST',body:JSON.stringify({ext_id:v})}).then(r=>{if(v){me.connections[acc]={platform:'ig',ext_id:v,username:r.username}}else delete me.connections[acc];render();toast(v?'Compte relié : @'+r.username:'Compte délié')}).catch(e=>{if(!(e instanceof AuthError))toast(e.message);render()});return}
  if(t.dataset&&t.dataset.done){const[pid,acc]=t.dataset.done.split('|');targetAct(pid,acc,t.checked?'done':'undo')}
 });
 document.addEventListener('dragover',ev=>{const d=ev.target.closest&&ev.target.closest('#drop');if(d){ev.preventDefault();d.classList.add('over')}});
@@ -692,7 +698,7 @@ async function boot(){
  me.connections=me.connections||{};
  $('#login').hidden=true;$('#app').hidden=false;$('#tabs').hidden=false;
  const q=new URLSearchParams(location.search),ig=q.get('ig');
- if(ig!=null){flash=ig.startsWith('ok:')?{ok:true,text:'Compte Instagram connecté'+(ig.slice(3)?' : @'+ig.slice(3):'')+'.'}:{ok:false,text:ig};history.replaceState(null,'','/'+location.hash)}
+ if(ig!=null){if(ig.startsWith('ok:')){const[,n,a]=ig.split(':');flash={ok:true,text:`Meta a partagé ${n} compte${n>1?'s':''} Instagram, dont ${a} relié${a>1?'s':''} automatiquement. Vérifie les associations ci-dessous.`}}else flash={ok:false,text:ig};history.replaceState(null,'','/'+location.hash)}
  await refresh();show();if(ig!=null&&view!=='comptes')go('comptes');
  if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }

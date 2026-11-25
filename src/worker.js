@@ -3,7 +3,7 @@ import { isAuthed, login, logout, sameOrigin, rotateSessions } from './auth.js';
 import { totpConfig, newSecret, otpauthUri, verifyCode, checkAndConsume, clearTotp } from './totp.js';
 import { json, err } from './util.js';
 import { mediaStart, mediaPart, mediaComplete, mediaAbort, mediaServe, storageUsed, storageLimit } from './media.js';
-import { igStart, igCallback, igConfigured, igRedirect, igDeauthorize, igDataDeletion } from './instagram.js';
+import { igStart, igCallback, igConfigured, igRedirect, igDeauthorize, igDataDeletion, igAssign, igAssets } from './instagram.js';
 import { vapidPublicKey, notifyAll } from './push.js';
 import { adapt, aiEnabled } from './ai.js';
 import { tick } from './tick.js';
@@ -56,6 +56,7 @@ export default {
 
       // Connexions aux réseaux
       m = path.match(/^\/api\/connections\/([^/]+)$/);
+      if (m && req.method === 'POST') return igAssign(req, env, decodeURIComponent(m[1]));
       if (m && req.method === 'DELETE') {
         await env.DB.prepare('DELETE FROM connections WHERE account = ?').bind(m[1]).run();
         return json({ ok: true });
@@ -87,19 +88,20 @@ async function me(env, url, authed) {
   const base = { authed, passwordSet: !!env.APP_PASSWORD };
   if (!authed) return json(base);
   if ((await kvGet(env, 'origin')) !== url.origin) await kvSet(env, 'origin', url.origin);
-  const { results } = await env.DB.prepare('SELECT account, platform, username, expires FROM connections').all();
+  const { results } = await env.DB.prepare('SELECT account, platform, ext_id, username, expires FROM connections').all();
   const subs = await env.DB.prepare('SELECT COUNT(*) AS n FROM push_subs').first();
   return json({
     ...base,
     igConfigured: igConfigured(env),
     igRedirect: igRedirect(url),
+    igAssets: (await igAssets(env)).map((a) => ({ id: a.id, username: a.username, name: a.name })),
     aiEnabled: aiEnabled(env),
     vapidKey: await vapidPublicKey(env),
     pushDevices: subs ? subs.n : 0,
     storage: { bytes: (await storageUsed(env)).bytes || 0, limit: storageLimit(env) },
     twoFactor: !!(await totpConfig(env)),
     twoFactorSuspended: !!env.DISABLE_2FA,
-    connections: Object.fromEntries(results.map((c) => [c.account, { platform: c.platform, username: c.username, expires: c.expires }])),
+    connections: Object.fromEntries(results.map((c) => [c.account, { platform: c.platform, ext_id: c.ext_id, username: c.username, expires: c.expires }])),
   });
 }
 

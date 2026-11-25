@@ -54,21 +54,24 @@ Ensuite, chaque nouvelle connexion demande le mot de passe **et** le code. Sur i
 **Téléphone perdu ?** Dans Cloudflare, ajoute le secret `DISABLE_2FA` avec la valeur `1` (**Settings → Variables and Secrets**). Plateau ne demande alors plus que le mot de passe. Dans **Comptes**, touche **Réinitialiser**, réactive la double authentification avec ton nouveau téléphone, puis supprime le secret `DISABLE_2FA`.
 
 ### 5. Brancher Instagram (publication automatique)
-Instagram exige une petite « app » côté Meta. Elle ne sert que tes comptes, donc aucune validation de Meta n'est nécessaire (accès « Standard »). Les libellés exacts de Meta peuvent varier un peu.
+Depuis fin 2026, les nouvelles apps Meta passent par la **connexion unifiée** (*Unified login*). Une seule connexion suffit pour tous tes comptes Instagram, sans page Facebook, et l'accès n'expire pas. L'app reste en mode « Development » : elle ne sert que tes propres comptes. Les libellés de Meta peuvent varier un peu.
 
 1. **Passe chaque compte Instagram en mode Créateur ou Entreprise** : dans Instagram, *Paramètres → Type de compte et outils*.
-2. Va sur [developers.facebook.com](https://developers.facebook.com) et crée un compte développeur si besoin.
-3. **Create App**. Choisis le cas d'usage qui gère le contenu Instagram, puis le produit **Instagram → API setup with Instagram login**.
-4. Dans cette page de configuration :
-   - Copie l'**Instagram app ID** et l'**Instagram app secret**.
-   - Dans la partie **Business login settings**, ajoute l'adresse de retour (*OAuth redirect URI*). Plateau te l'affiche dans **Comptes**, avec un bouton pour la copier. Elle ressemble à `https://reseauxmanager.<ton-sous-domaine>.workers.dev/auth/instagram/callback`.
-   - Ajoute chacun de tes comptes Instagram à l'app, avec le rôle *Instagram Tester* ou le bouton *Add account* selon l'écran. Accepte l'invitation depuis chaque compte si Instagram en envoie une.
-5. Dans Cloudflare (**Settings → Variables and Secrets**), ajoute deux secrets :
-   - `IG_APP_ID` : l'Instagram app ID
-   - `IG_APP_SECRET` : l'Instagram app secret
-6. **Depuis ton Mac**, dans Plateau, onglet **Comptes**, touche **Connecter** à côté de chaque compte Instagram. Sur la page Instagram qui s'ouvre, connecte-toi avec **ce compte-là**. Plateau affiche ensuite le @ du compte relié, pour vérifier.
+2. Sur [developers.facebook.com](https://developers.facebook.com), crée une app de type **Business** et ajoute le produit **Instagram**.
+3. **Relie l'app à un portefeuille business** (*Paramètres de l'app → Général*). C'est obligatoire avec la connexion unifiée.
+4. Ouvre **Instagram → API setup with Unified login → Create new configuration** :
+   - Access token : **System-user access token**, expiration **Never** ;
+   - Assets : **Instagram accounts** ;
+   - Permissions : au minimum `instagram_basic` et `instagram_content_publish`, plus `business_management` s'il est proposé.
+   Enregistre et note le **Configuration ID**.
+5. Sur la même page, ajoute l'adresse de retour (*Redirect URL*). Plateau l'affiche dans **Comptes**, avec un bouton pour la copier : `https://reseauxmanager.<ton-sous-domaine>.workers.dev/auth/instagram/callback`. Si Meta les demande, ajoute aussi `…/auth/instagram/deauthorize` (retrait) et `…/auth/instagram/delete` (suppression des données).
+6. Dans Cloudflare (**Settings → Variables and Secrets**), ajoute trois secrets :
+   - `META_APP_ID` : l'App ID en haut du tableau de bord Meta ;
+   - `META_APP_SECRET` : *Paramètres de l'app → Général → Clé secrète → Afficher* ;
+   - `META_CONFIG_ID` : le Configuration ID.
+7. Dans Plateau, **Comptes → Connecter mes comptes Instagram**. Dans la fenêtre de Meta, choisis ton portefeuille business et **coche tous tes comptes Instagram**. De retour dans Plateau, les comptes dont le nom correspond sont reliés automatiquement. Choisis les autres dans la liste à côté de chaque marque.
 
-La connexion dure 60 jours. Plateau la renouvelle tout seul tant que l'app tourne.
+Pour ajouter un compte plus tard, refais l'étape 7 en le cochant en plus.
 
 ### 6. (Optionnel) « Adapter avec Claude »
 Pour avoir le bouton qui réécrit la légende pour chaque réseau, ajoute le secret `ANTHROPIC_API_KEY` avec une clé créée sur [platform.claude.com](https://platform.claude.com). L'usage est facturé par Anthropic selon la consommation. Sans cette clé, le bouton n'apparaît pas.
@@ -87,7 +90,7 @@ Pour avoir le bouton qui réécrit la légende pour chaque réseau, ajoute le se
 
 Bon à savoir :
 - Instagram n'accepte les images qu'entre 4:5 (portrait) et 1,91:1 (paysage). Pour un format 9:16, publie une vidéo : elle part en reel. Plateau convertit tout seul les images en JPEG.
-- Instagram limite chaque compte à 100 publications automatiques par 24 heures.
+- Instagram limite le nombre de publications automatiques par compte et par 24 heures (100 au moment de l'écriture).
 
 ## Coûts : rester dans la gratuité
 Seul le stockage des médias (R2) peut être facturé, et l'app est réglée pour rester dans la partie gratuite.
@@ -123,4 +126,4 @@ Les deux demandes exigent de montrer l'app en fonctionnement. Quand tu seras pr�
   1. `npm install` ;
   2. crée un fichier `.dev.vars` contenant `APP_PASSWORD=...` ;
   3. lance `npx wrangler dev --test-scheduled`. L'adresse `/__scheduled` déclenche la tâche planifiée.
-- `IG_GRAPH_BASE` et `IG_OAUTH_BASE` permettent de pointer vers un faux serveur Instagram pour les tests.
+- `IG_GRAPH_BASE` et `IG_DIALOG_BASE` permettent de pointer vers un faux serveur Meta pour les tests.

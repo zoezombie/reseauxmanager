@@ -18,7 +18,7 @@
   // Vérifie chaque minute les posts arrivés à l'heure.
   "triggers": { "crons": ["* * * * *"] },
   "vars": {
-    "IG_API_VERSION": "v24.0",
+    "META_GRAPH_VERSION": "v25.0",
     "AI_MODEL": "claude-haiku-5-5"
   },
   "observability": { "enabled": true }

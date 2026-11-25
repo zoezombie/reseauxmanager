@@ -1,9 +1,9 @@
 // Tâche planifiée, lancée chaque minute par Cloudflare.
 // 1) posts arrivés à l'heure : Instagram connecté -> publication auto ; sinon -> rappel sur l'iPhone
 // 2) vidéos Instagram en traitement -> publication quand elles sont prêtes
-// 3) entretien : renouvellement des jetons Instagram, ménage des médias orphelins
+// 3) entretien : ménage des médias orphelins et des vidéos déjà publiées
 import { ACCOUNTS, PLAT, captionFor } from '../public/accounts.js';
-import { igCreate, igStatus, igPublish, igRefreshTokens } from './instagram.js';
+import { igCreate, igStatus, igPublish } from './instagram.js';
 import { notifyAll } from './push.js';
 import { ensureSchema, kvGet, kvSet } from './db.js';
 
@@ -125,7 +125,6 @@ export async function tick(env) {
   const last = Number((await kvGet(env, 'maintenance')) || 0);
   if (now - last > 6 * 3600e3) {
     await kvSet(env, 'maintenance', String(now));
-    await igRefreshTokens(env, 3);
     await cleanupMedia(env);
     await purgeOldMedia(env);
     await measureStorage(env);
